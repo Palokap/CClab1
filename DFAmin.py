@@ -18,7 +18,7 @@ def nullable(node):
         if node['key'] == '|':
             node['nl'] = nullable(node['left']) or nullable(node['right'])
             return nullable(node['left']) or nullable(node['right'])
-        elif node['key'] == '':
+        elif node['key'] in ['', "+"]:
             node['nl'] = nullable(node['left']) and nullable(node['right'])
             return nullable(node['left']) and nullable(node['right'])
         elif node['key'] == '*':
@@ -51,7 +51,7 @@ def firstpos(node):
             else:
                 node['fp'] = firstpos(node['left'])
                 return node['fp']
-        elif node['key'] == '*':
+        elif node['key'] in ['*','+']:
             node['fp'] = firstpos(node['left'])
             return node['fp']
     return False  # защщщщита от зацикливания
@@ -81,7 +81,7 @@ def lastpos(node):
             else:
                 node['lp'] = lastpos(node['right'])
                 return node['lp']
-        elif node['key'] == '*':
+        elif node['key'] in ['*','+']:
             node['lp'] = lastpos(node['left'])
             return node['lp']
     return False  # защщщщита от зацикливания
@@ -94,7 +94,7 @@ def followpos(node, root):
     if node['key'] == "":
         for i in node['left']['lp']:
             getNodeByPosit(root, i)['flp'] = getNodeByPosit(root, i)['flp'].union(node['right']['fp'])
-    elif node['key'] == '*':
+    elif node['key'] in ['*','+']:
         for i in node['lp']:
             getNodeByPosit(root, i)['flp'] = getNodeByPosit(root, i)['flp'].union(node['fp'])
 
@@ -105,13 +105,13 @@ def followpos(node, root):
 def tree(expression):
     stack = []
     output = []
-    expression = '(' + expression + ')#'
+    expression = '('+expression + ')#'
     for token in expression:
         if not output:
             output.append(token)
         elif output[-1] in ['|', '(']:
             output.append(token)
-        elif token in ['|', '*', ')']:
+        elif token in ['|', '*', '+', ')']:
             output.append(token)
         else:
             output.append('')
@@ -120,12 +120,12 @@ def tree(expression):
     expression = []
 
     for token in output:
-        if token in ["*"]:
+        if token in ["*", "+"]:
             expression.append(token)
         elif token == "(":
             stack.append(token)
         elif token in ["|", ""]:
-            while stack and stack[-1] in ["", "*"]:
+            while stack and stack[-1] in ["", "*", "+"]:
                 expression.append(stack.pop())
             stack.append(token)
         elif token == ")":
@@ -148,7 +148,7 @@ def tree(expression):
             o1 = stack.pop()
             unit = dict(left=o1, right=o2, key=token, posit=None, flp={}, lp={})
             stack.append(unit)
-        elif token == '*':
+        elif token in ['*','+']:
             o1 = stack.pop()
             unit = dict(left=o1, right=None, key=token, posit=None, flp={}, lp={})
             stack.append(unit)
@@ -170,7 +170,7 @@ def dfa(stack, symbols):
     Dtran = []
 
     #print('00000000000000000000000', stack[0])
-    #print(stack[0]['right'])
+    print(stack[0], stack[0]['right'])
     finishing = stack[0]['right']['posit']
     Dstates.append(dict(fp=firstpos(stack[0]), mark=False, finishing=(finishing in firstpos(stack[0]))))
 
@@ -306,7 +306,7 @@ def fa_min(Dstates, ClearNat,symbols):
 
                 if CNat['symbol'] == fa[1][a] and start == fa[0][q]:
                     fa[2][q][a] = fa[2][q][a] + [to]
-    print(fa)
+    #print(fa)
     fa_gv(fa, 'fa.gv')
     return fa_det(fa_rev(fa_det(fa_rev(fa))))
 
@@ -315,7 +315,6 @@ def fa_min(Dstates, ClearNat,symbols):
 def grafviz(fa):
     fa_gv(fa_min(fa), 'fa_min.gv')
     return
-
 
 # ПуНкТ ТрИ
 def check(fa, chain):
@@ -327,24 +326,25 @@ def check(fa, chain):
             #print(li,'____________', fa[2][condit][li][0])
             condit = fa[2][condit][li][0]
         if condit in fa[4]:
-            print('все удалось')
+            print('Цепочка пройдена')
             return True
         else:
             print('Цепочка пройдена не полностью')
             return False
     except:
-        print('все очень плохо')
+        print('Цепочка не пройдена')
         return False
 
 
 if __name__ == '__main__':
-    expression = input("Ввод регулярного выражения: ")
-    #wexpression = '(a|b)*abb'
-    #expression = '(a*|bbc)a*c*b'
+    while True:
+        #expression = input("Ввод регулярного выражения: ")
+        expression = '(a|b)+abb'
+        #expression = '(a*|bbc)a*c*b'
 
-    stack, symbols = tree(expression)
-    Dstates, Dtrans = dfa(stack, symbols)
-    fa = fa_min(Dstates, Dtrans, symbols)
-    chain = input('Строка: ')
-    res = check(fa, chain)
-    print(res)
+        stack, symbols = tree(expression)
+        Dstates, Dtrans = dfa(stack, symbols)
+        fa = fa_min(Dstates, Dtrans, symbols)
+        chain = input('Строка: ')
+        res = check(fa, chain)
+        print(res)
